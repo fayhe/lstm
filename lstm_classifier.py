@@ -14,10 +14,68 @@ from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM, GRU
 
+# coding=utf-8
+import urllib2
+import json
+from elasticsearch import Elasticsearch
+
 
 print('start model...')
-neg=pd.read_excel('neg.xls',header=None,index=None)
-pos=pd.read_excel('pos.xls',header=None,index=None) #读取训练语料完毕
+
+def save_raw_data(file,data):	
+	file.write( data.encode('utf8').replace('\n','').replace('\'','').replace('"','').replace(',','')  + '\n')
+
+
+def fenci(summary):
+	nlp_features_list = ""
+	nlp_features = pseg.cut(summary)
+	for w in nlp_features:
+		if w.flag == 'ns' or w.flag == 'n' or w.flag == 'ng' or w.flag == 'nl' or "a" in w.flag or "v" in w.flag or w.flag == 't':
+			#print w.word + w.flag 
+			nlp_features_list = nlp_features_list + " " + w.word 
+	##jieba.analyse.extract_tags(summary,allowPOS=('ns', 'n','ng','nl','t','v','a'), topK=1000)
+	#nlp_features_list = ' '.join(nlp_features)
+	return nlp_features_list  
+
+es = Elasticsearch()
+types = ['剧情','喜剧']
+folder = ['juqing','xiju']
+file_root_path = 'raw_data/'
+
+foler_index=0
+juqing_type_list = []
+xiju_type_list = []
+for type in types:
+	file = open(file_root_path + folder[foler_index], 'w')
+	res = es.search(index="douban", doc_type=type, size=2000, body={"query": {"match_all": {}}})
+	print("Got %d Hits:" % res['hits']['total'])
+	for hit in res['hits']['hits']:
+		id = hit["_id"]
+		##print(hit["_id"])
+#		print(hit["_source"]["alt_title"])
+#		print(hit["_source"]["summary"])
+		##feature = fenci(hit["_source"]["summary"])
+		#save_raw_data(file , hit["_source"]["alt_title"])
+		save_raw_data(file , hit["_source"]["summary"])
+		if type == '剧情':
+			juqing_type_list.append(hit["_source"]["summary"])
+		if type == '喜剧':
+			xiju_type_list.append(hit["_source"]["summary"])			
+		#print(hit["_source"]["summary"])
+	foler_index = foler_index+1	
+	#print raw_type_list
+#	print("Got %d Hits:" % res['hits']['total'])
+
+neg = pd.DataFrame(juqing_type_list) 
+print(neg)
+
+pos = pd.DataFrame(xiju_type_list) 
+print(pos)
+
+
+#neg = pd.read_csv('raw_data/juqing', sep=",", header = None)
+#print(neg)
+#pos=pd.read_txt('raw_data/xiju',header=None,index=None) #读取训练语料完毕
 pos['mark']=1
 neg['mark']=0 #给训练语料贴上标签
 pn=pd.concat([pos,neg],ignore_index=True) #合并语料
@@ -47,7 +105,7 @@ dict['id']=list(range(1,len(dict)+1))
 get_sent = lambda x: list(dict['id'][x])
 pn['sent'] = pn['words'].apply(get_sent) #速度太慢
 
-maxlen = 50
+maxlen = 500
 
 print("Pad sequences (samples x time)")
 pn['sent'] = list(sequence.pad_sequences(pn['sent'], maxlen=maxlen))
@@ -82,10 +140,10 @@ model.fit(xa, ya, batch_size=16, nb_epoch=10) #训练时间为若干个小时
 
 # serialize model to JSON
 model_json = model.to_json()
-with open("model.json", "w") as json_file:
+with open("model_test.json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model.h5")
+model.save_weights("model_test.h5")
 print("Saved model to disk")
 
 scores = model.evaluate(xa, ya, verbose=0)
