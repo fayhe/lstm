@@ -169,8 +169,8 @@ dict['id']=list(range(1,len(dict)+1))
 get_sent = lambda x: list(dict['id'][x])
 pn['sent'] = pn['words'].apply(get_sent) #速度太慢
 
-maxlen = 1000
-max_features = 1000
+maxlen = 10000
+max_features = 10000
 
 print("Pad sequences (samples x time)")
 pn['sent'] = list(sequence.pad_sequences(pn['sent'], maxlen=maxlen))
@@ -186,20 +186,21 @@ ya = np.array(list(pn['mark']))
 
 print('Build model...')
 model = Sequential()
-model.add(Embedding(len(dict)+1, 256))
-model.add(LSTM(256)) # try using a GRU instead, for fun
-model.add(Dropout(0.5))
-model.add(Dense( 1));
+model.add(Dense(512, input_shape=(max_features,), activation='tanh'))
+#model.add(LSTM(256)) # try using a GRU instead, for fun
+#model.add(Dropout(0.5))
+#model.add(Dense( 1));
 	
 	##, activation='softmax'))
-model.add(Activation('softmax'))
+#model.add(Activation('softmax'))
 
 #model.add(Dense(512, input_shape=(max_features,), activation='tanh'))
-#model.add(Dropout(0.5))
-#model.add(Dense(1, activation='softmax'))
+model.add(Dropout(0.5))
+model.add(Dense(9))
+model.add(Activation('softmax'))
 
-model.compile(loss='binary_crossentropy', optimizer='adam', class_mode="binary")
-#model.compile(loss='categorical_crossentropy', optimizer='adam', class_mode="categorical")
+#model.compile(loss='binary_crossentropy', optimizer='adam', class_mode="binary")
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', class_mode="categorical")
 
 
 print('before tain...')
@@ -213,10 +214,10 @@ model.fit(xa, ya, batch_size=16, nb_epoch=10) #训练时间为若干个小时
 
 # serialize model to JSON
 model_json = model.to_json()
-with open("model_test_1.json", "w") as json_file:
+with open("model_test_10000.json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model_test_1.h5")
+model.save_weights("model_test_10000.h5")
 print("Saved model to disk")
 
 scores = model.evaluate(xa, ya, verbose=0)
