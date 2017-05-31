@@ -186,22 +186,18 @@ ya = np.array(list(pn['mark']))
 
 print('Build model...')
 model = Sequential()
-model.add(Dense(512, input_shape=(max_features,), activation='tanh'))
-#model.add(LSTM(256)) # try using a GRU instead, for fun
-#model.add(Dropout(0.5))
-#model.add(Dense( 1));
-	
-	##, activation='softmax'))
-#model.add(Activation('softmax'))
 
-#model.add(Dense(512, input_shape=(max_features,), activation='tanh'))
+model.add(Embedding(input_dim=len(dict)+1, output_dim=256))
+model.add(LSTM(256, activation='tanh',inner_activation='hard_sigmoid')) # try using a GRU instead, for fun
 model.add(Dropout(0.5))
 model.add(Dense(9))
 model.add(Activation('softmax'))
+model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', class_mode="categorical", metrics=['accuracy'])
 
-#model.compile(loss='binary_crossentropy', optimizer='adam', class_mode="binary")
-model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', class_mode="categorical")
-
+#model.add(Dense(512, input_shape=(max_features,), activation='tanh'))
+#model.add(Dropout(0.5))
+#model.add(Dense(9, activation='softmax'))
+#model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', class_mode="categorical", metrics=['accuracy'])
 
 print('before tain...')
 model.fit(xa, ya, batch_size=16, nb_epoch=10) #训练时间为若干个小时
@@ -214,12 +210,16 @@ model.fit(xa, ya, batch_size=16, nb_epoch=10) #训练时间为若干个小时
 
 # serialize model to JSON
 model_json = model.to_json()
-with open("model_test_1000.json", "w") as json_file:
+with open("model_test_1000_lstm_50.json", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model_test_1000.h5")
+model.save_weights("model_test_1000_lstm_50.h5")
 print("Saved model to disk")
 
-scores = model.evaluate(xa, ya, verbose=0)
-print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
+score, acc =  model.evaluate(xa, ya, verbose=0)
+#classes = model.predict_classes(xa)
+#acc =np_utils.accuracy(classes, ya)
+print(acc)
+print(scores)
+
  
